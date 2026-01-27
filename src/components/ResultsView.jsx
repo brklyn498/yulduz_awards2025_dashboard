@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Award, Trophy, Medal, Download, Filter, Search, X, Users } from 'lucide-react';
+import { Award, Trophy, Medal, Download, Filter, Search, X, Users, Info } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
+import { AnimatePresence } from 'framer-motion';
 
 const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
     const [selectedCategory, setSelectedCategory] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedContestant, setSelectedContestant] = useState(null);
 
     const results = useMemo(() => {
         let filtered = [...contestants];
@@ -71,7 +73,8 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay }}
-                className={`glass p-8 rounded-3xl border-2 ${colors[rank]} flex flex-col items-center text-center relative overflow-hidden group hover:scale-105 transition-all`}
+                onClick={() => setSelectedContestant(contestant)}
+                className={`glass p-8 rounded-3xl border-2 ${colors[rank]} flex flex-col items-center text-center relative overflow-hidden group hover:scale-105 transition-all cursor-pointer`}
             >
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                     {icons[rank]}
@@ -91,6 +94,80 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
                 <div className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-500/30">
                     {contestant.cumulativeScore} BALL
                 </div>
+
+                <div className="mt-4 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider opacity-0 group-hover:opacity-60 transition-opacity text-indigo-500">
+                    <Info className="w-3 h-3" /> Batafsil ballar
+                </div>
+            </motion.div>
+        );
+    };
+
+    const ScoreModal = ({ contestant, onClose }) => {
+        if (!contestant) return null;
+
+        return (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-sm"
+                onClick={onClose}
+            >
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                    className={`relative w-full max-w-lg rounded-3xl overflow-hidden border shadow-2xl ${theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Header */}
+                    <div className={`p-6 border-b flex items-center justify-between ${theme === 'dark' ? 'border-slate-800 bg-slate-800/50' : 'border-slate-100 bg-slate-50/80'}`}>
+                        <div>
+                            <h2 className={`text-xl font-black uppercase tracking-tight truncate max-w-[300px] ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                                {contestant.name}
+                            </h2>
+                            <p className="text-xs opacity-50 font-medium uppercase tracking-wider">{contestant.category}</p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className={`p-2 rounded-xl transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        <div className="grid grid-cols-1 gap-3">
+                            {jurorNames.map((name, index) => (
+                                <div
+                                    key={name}
+                                    className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${theme === 'dark' ? 'bg-slate-800/40 border-slate-700/50' : 'bg-slate-50 border-slate-200/50'}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${theme === 'dark' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-indigo-600 text-white'}`}>
+                                            {index + 1}
+                                        </div>
+                                        <span className={`font-bold text-sm ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                                            {name.replace(/_/g, ' ')}
+                                        </span>
+                                    </div>
+                                    <div className={`text-lg font-black ${theme === 'dark' ? 'text-white' : 'text-indigo-600'}`}>
+                                        {contestant.juries[name] || 0}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className={`p-6 border-t flex items-center justify-between ${theme === 'dark' ? 'border-slate-800 bg-slate-800/20' : 'border-slate-100 bg-slate-50/50'}`}>
+                        <span className="text-sm font-bold opacity-60 uppercase tracking-widest">Jami To'plangan Ball</span>
+                        <div className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-indigo-500/30">
+                            {contestant.cumulativeScore}
+                        </div>
+                    </div>
+                </motion.div>
             </motion.div>
         );
     };
@@ -166,7 +243,11 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
                                 </thead>
                                 <tbody className="divide-y divide-slate-500/10">
                                     {results.map((c, i) => (
-                                        <tr key={c.id} className={`group hover:bg-indigo-600/5 transition-colors`}>
+                                        <tr
+                                            key={c.id}
+                                            onClick={() => setSelectedContestant(c)}
+                                            className={`group hover:bg-indigo-600/5 transition-colors cursor-pointer`}
+                                        >
                                             <td className="px-6 py-4">
                                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${i < 3 ? 'bg-indigo-600 text-white' : theme === 'dark' ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'
                                                     }`}>
@@ -208,6 +289,15 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
                     <p>Hakamlar hay'ati baholari yuklanmoqda yoki hali kiritilmagan.</p>
                 </div>
             )}
+
+            <AnimatePresence>
+                {selectedContestant && (
+                    <ScoreModal
+                        contestant={selectedContestant}
+                        onClose={() => setSelectedContestant(null)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
