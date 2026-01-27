@@ -54,6 +54,10 @@ const App = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [juryResults, setJuryResults] = useState({ results: [], jurorNames: [] });
   const [isResultsLocked, setIsResultsLocked] = useState(true);
+  const [tempPassword, setTempPassword] = useState('');
+  const [isTempUnlocked, setIsTempUnlocked] = useState(false);
+  const [passwordError, setPasswordError] = useState(false);
+  const [juryLoading, setJuryLoading] = useState(false);
   const [scores, setScores] = useState(() => {
     const saved = localStorage.getItem('contestant_scores');
     return saved ? JSON.parse(saved) : {};
@@ -74,8 +78,8 @@ const App = () => {
         setStats(processed);
         setLoading(false);
 
-        // 2. Load jury data via Worker
         if (workerUrl) {
+          setJuryLoading(true);
           fetch(`${workerUrl}/juries`)
             .then(res => res.json())
             .then(async (juryNames) => {
@@ -93,8 +97,12 @@ const App = () => {
               const juries = (await Promise.all(juryPromises)).filter(Boolean);
               const aggregated = aggregateAllScores(juries, processed.raw);
               setJuryResults(aggregated);
+              setJuryLoading(false);
             })
-            .catch(err => console.warn('Jury manifest not found or empty'));
+            .catch(err => {
+              console.warn('Jury manifest not found or empty');
+              setJuryLoading(false);
+            });
         }
       })
       .catch(err => {
@@ -309,11 +317,55 @@ const App = () => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
             >
-              {isResultsLocked ? (
-                <div className={`text-center py-32 rounded-3xl border border-dashed ${theme === 'dark' ? 'bg-slate-800/20 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
-                  <Award className="w-16 h-16 mx-auto mb-4 opacity-20" />
+              {isResultsLocked && !isTempUnlocked ? (
+                <div className={`text-center py-24 px-6 rounded-3xl border border-dashed flex flex-col items-center ${theme === 'dark' ? 'bg-slate-800/20 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400'}`}>
+                  <Award className="w-16 h-16 mb-4 opacity-20" />
                   <h3 className="text-2xl font-bold mb-2">Natijalar tez orada e'lon qilinadi</h3>
-                  <p>Hozirda hakamlar hay'ati a’zolari ishtirokchilarni baholashmoqda.</p>
+                  <p className="mb-8">Hozirda hakamlar hay'ati a’zolari ishtirokchilarni baholashmoqda.</p>
+
+                  <form
+                    className="flex flex-col items-center gap-3 w-full max-w-xs"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (tempPassword === 'hoshi') {
+                        setIsTempUnlocked(true);
+                        setPasswordError(false);
+                      } else {
+                        setPasswordError(true);
+                      }
+                    }}
+                  >
+                    <div className="w-full relative">
+                      <input
+                        type="password"
+                        placeholder="Parol kiritish..."
+                        className={`w-full px-4 py-3 rounded-xl border text-center transition-all focus:ring-2 focus:ring-indigo-500 outline-none ${passwordError ? 'border-red-500 bg-red-500/5' :
+                          theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+                          }`}
+                        value={tempPassword}
+                        onChange={(e) => {
+                          setTempPassword(e.target.value);
+                          setPasswordError(false);
+                        }}
+                      />
+                      {passwordError && (
+                        <p className="text-red-500 text-[10px] mt-2 font-bold uppercase tracking-wider">Noto'g'ri parol</p>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
+                    >
+                      Tasdiqlash
+                    </button>
+                    <p className="text-[10px] opacity-40 uppercase tracking-widest font-bold">Ma'muriyat uchun xizmat</p>
+                  </form>
+                </div>
+              ) : juryLoading ? (
+                <div className="text-center py-32">
+                  <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="opacity-50 font-bold uppercase tracking-widest text-[10px]">Ma'lumotlar yuklanmoqda...</p>
                 </div>
               ) : (
                 <ResultsView

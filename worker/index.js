@@ -23,9 +23,9 @@ export default {
 
             // Get specific jury CSV
             if (url.pathname.startsWith("/jury/")) {
-                const juryName = url.pathname.replace("/jury/", "");
+                const juryName = decodeURIComponent(url.pathname.replace("/jury/", ""));
                 const csv = await env.JURY_DATA.get(`jury:${juryName}`);
-                if (!csv) return new Response("Not found", { status: 404, headers: corsHeaders });
+                if (!csv) return new Response(`Not found: jury:${juryName}`, { status: 404, headers: corsHeaders });
 
                 return new Response(csv, {
                     headers: { ...corsHeaders, "Content-Type": "text/csv; charset=utf-8" }
