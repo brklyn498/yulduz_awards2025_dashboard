@@ -1,0 +1,10 @@
+name = "yulduz-awards-proxy"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# OPENROUTER_API_KEY should be set as a secret via 'wrangler secret put OPENROUTER_API_KEY'
+
+[[kv_namespaces]]
+binding = "JURY_DATA"
+id = "17b9699f54474097b65861ad0495b08a"
