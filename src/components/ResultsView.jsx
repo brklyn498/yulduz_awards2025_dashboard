@@ -25,11 +25,33 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
             );
         }
 
-        // The sorting is already done in App.jsx but we re-apply for stability
-        return filtered.sort((a, b) => b.cumulativeScore - a.cumulativeScore || a.name.localeCompare(b.name));
+        // Apply advanced tie-breaking: Total -> 5s -> 4s -> A-Z
+        return filtered.sort((a, b) => {
+            if (b.cumulativeScore !== a.cumulativeScore) return b.cumulativeScore - a.cumulativeScore;
+            if (b.scoreDetails.count5 !== a.scoreDetails.count5) return b.scoreDetails.count5 - a.scoreDetails.count5;
+            if (b.scoreDetails.count4 !== a.scoreDetails.count4) return b.scoreDetails.count4 - a.scoreDetails.count4;
+            return a.name.localeCompare(b.name);
+        });
     }, [contestants, selectedCategory, searchTerm]);
 
     const topThree = results.slice(0, 3);
+
+    const tieGroups = useMemo(() => {
+        const counts = {};
+        results.forEach(r => {
+            counts[r.cumulativeScore] = (counts[r.cumulativeScore] || 0) + 1;
+        });
+        return counts;
+    }, [results]);
+
+    const getBadgeStyle = (score) => {
+        if (tieGroups[score] <= 1) return null;
+        if (score >= 18) return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+        if (score >= 15) return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+        if (score >= 12) return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+        if (score >= 10) return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    };
 
     const exportToExcel = () => {
         const exportData = results.map((c, i) => {
@@ -95,6 +117,12 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
                     {contestant.cumulativeScore} BALL
                 </div>
 
+                {getBadgeStyle(contestant.cumulativeScore) && (
+                    <div className={`mt-3 flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${getBadgeStyle(contestant.cumulativeScore)}`}>
+                        Bir xil ball
+                    </div>
+                )}
+
                 <div className="mt-4 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider opacity-0 group-hover:opacity-60 transition-opacity text-indigo-500">
                     <Info className="w-3 h-3" /> Batafsil ballar
                 </div>
@@ -138,6 +166,26 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
 
                     {/* Content */}
                     <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                        {/* Distribution Summary */}
+                        {contestant.scoreDetails && (
+                            <div className={`p-4 rounded-2xl flex items-center justify-around text-center border shadow-sm ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700/50' : 'bg-slate-50 border-slate-100'}`}>
+                                <div>
+                                    <div className="text-2xl font-black text-indigo-500">{contestant.scoreDetails.count5}</div>
+                                    <div className="text-[10px] uppercase font-bold opacity-50">5 Ball</div>
+                                </div>
+                                <div className="w-px h-8 bg-slate-500/20" />
+                                <div>
+                                    <div className="text-2xl font-black text-indigo-400">{contestant.scoreDetails.count4}</div>
+                                    <div className="text-[10px] uppercase font-bold opacity-50">4 Ball</div>
+                                </div>
+                                <div className="w-px h-8 bg-slate-500/20" />
+                                <div>
+                                    <div className="text-2xl font-black text-slate-400">{Object.values(contestant.juries).filter(s => s < 4 && s > 0).length}</div>
+                                    <div className="text-[10px] uppercase font-bold opacity-50">Boshqa</div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 gap-3">
                             {jurorNames.map((name, index) => (
                                 <div
@@ -175,32 +223,38 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
     return (
         <div className="space-y-10">
             {/* Controls */}
-            <div className="glass p-6 rounded-2xl flex flex-wrap gap-4 items-center justify-between shadow-sm">
-                <div className="flex flex-wrap gap-4 flex-1">
-                    <div className="relative min-w-[300px] flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <div className="glass p-5 rounded-3xl flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between shadow-sm">
+                <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                         <input
                             type="text"
                             placeholder="Ism yoki loyiha bo'yicha qidiruv..."
-                            className={`w-full border rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                            className={`w-full border rounded-2xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
 
-                    <select
-                        className={`border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[250px] ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
-                        value={selectedCategory}
-                        onChange={e => setSelectedCategory(e.target.value)}
-                    >
-                        <option value="">Barcha nominatsiyalar</option>
-                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <div className="relative min-w-[200px]">
+                        <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                        <select
+                            className={`w-full appearance-none border rounded-2xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                            value={selectedCategory}
+                            onChange={e => setSelectedCategory(e.target.value)}
+                        >
+                            <option value="">Barcha nominatsiyalar</option>
+                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
                 </div>
 
                 <button
                     onClick={exportToExcel}
-                    className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-500/20"
+                    className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-emerald-500 active:scale-95 transition-all shadow-lg shadow-emerald-500/20 whitespace-nowrap"
                 >
                     <Download className="w-4 h-4" /> Excelga saqlash
                 </button>
@@ -232,12 +286,10 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
                             <table className="w-full text-left border-collapse min-w-[900px]">
                                 <thead>
                                     <tr className={`${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'} text-[10px] uppercase tracking-widest font-bold`}>
-                                        <th className="px-6 py-5">Rank</th>
+                                        <th className="px-6 py-5 w-20">Rank</th>
                                         <th className="px-6 py-5">Ishtirokchi</th>
                                         <th className="px-6 py-5">Nominatsiya</th>
-                                        {jurorNames.map(name => (
-                                            <th key={name} className="px-6 py-5 text-center bg-indigo-500/5">{name}</th>
-                                        ))}
+                                        <th className="px-6 py-5 text-center">Hakamlar</th>
                                         <th className="px-6 py-5 text-right font-black text-indigo-500">Jami Ball</th>
                                     </tr>
                                 </thead>
@@ -256,20 +308,28 @@ const ResultsView = ({ contestants, jurorNames, theme, categories }) => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className={`font-bold uppercase text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{c.name}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`font-bold uppercase text-sm ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{c.name}</span>
+                                                        {getBadgeStyle(c.cumulativeScore) && (
+                                                            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter border ${getBadgeStyle(c.cumulativeScore)}`}>
+                                                                Bir xil ball
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <span className="text-[10px] opacity-50 truncate max-w-[200px]">{c.region}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-xs font-medium opacity-70">
                                                 {c.category}
                                             </td>
-                                            {jurorNames.map(name => (
-                                                <td key={name} className="px-6 py-4 text-center">
-                                                    <span className={`inline-block px-2 py-1 rounded-md text-xs font-bold ${c.juries[name] ? 'bg-indigo-500/10 text-indigo-400' : 'opacity-20'}`}>
-                                                        {c.juries[name] || '-'}
-                                                    </span>
-                                                </td>
-                                            ))}
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <div className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${Object.keys(c.juries).filter(j => c.juries[j] > 0).length === jurorNames.length ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                                                        <Users className="w-3 h-3" />
+                                                        {Object.keys(c.juries).filter(j => c.juries[j] > 0).length} / {jurorNames.length}
+                                                    </div>
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 text-right">
                                                 <span className="inline-block px-4 py-1.5 bg-indigo-600 text-white rounded-lg font-black shadow-md">
                                                     {c.cumulativeScore}

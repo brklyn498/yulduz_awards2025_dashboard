@@ -56,11 +56,33 @@ export const aggregateAllScores = (juryDataFiles, allContestants) => {
     // Calculate final cumulative scores from aggregated juror data
     const finalResults = Array.from(resultsMap.values())
         .map(c => {
-            const sum = Object.values(c.juries).reduce((acc, s) => acc + s, 0);
-            return { ...c, cumulativeScore: sum };
+            const scores = Object.values(c.juries);
+            const sum = scores.reduce((acc, s) => acc + s, 0);
+            const count5 = scores.filter(s => s === 5).length;
+            const count4 = scores.filter(s => s === 4).length;
+            return {
+                ...c,
+                cumulativeScore: sum,
+                scoreDetails: { count5, count4 }
+            };
         })
         .filter(c => c.hasScored)
-        .sort((a, b) => b.cumulativeScore - a.cumulativeScore || a.name.localeCompare(b.name));
+        .sort((a, b) => {
+            // 1. Primary: Total Score
+            if (b.cumulativeScore !== a.cumulativeScore) {
+                return b.cumulativeScore - a.cumulativeScore;
+            }
+            // 2. Secondary: Count of 5s
+            if (b.scoreDetails.count5 !== a.scoreDetails.count5) {
+                return b.scoreDetails.count5 - a.scoreDetails.count5;
+            }
+            // 3. Tertiary: Count of 4s
+            if (b.scoreDetails.count4 !== a.scoreDetails.count4) {
+                return b.scoreDetails.count4 - a.scoreDetails.count4;
+            }
+            // 4. Final: Alphabetical
+            return a.name.localeCompare(b.name);
+        });
 
     return {
         results: finalResults,
