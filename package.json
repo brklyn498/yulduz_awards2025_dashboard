@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://brklyn498.github.io/yulduz_awards2025_dashboard/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

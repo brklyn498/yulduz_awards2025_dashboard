@@ -8,5 +8,5 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  base: './', // For GitHub Pages deployment
+  base: '/yulduz_awards2025_dashboard/', // For GitHub Pages deployment
 })
